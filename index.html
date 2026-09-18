@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Guiné Sports</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101416;color:#f5f7f8;font:15px Arial,sans-serif}
+header{background:#151b1e;padding:16px;position:sticky;top:0;z-index:3;border-bottom:1px solid #273035}
+.logo{font-size:25px;font-weight:800;color:#20d47b}.sub{color:#9da8ad;font-size:12px;margin-top:5px}
+nav{display:flex;gap:7px;overflow:auto;padding:10px;background:#151b1e}
+button{border:0;border-radius:20px;padding:10px 14px;background:#252d31;color:#ddd;white-space:nowrap}
+button.active{background:#20d47b;color:#06100a;font-weight:bold}
+main{max-width:760px;margin:auto;padding:10px 12px 80px}.title{font-size:18px;font-weight:700;margin:17px 0 9px}
+.card{background:#191f22;border-radius:12px;padding:12px;margin:8px 0}.league{font-size:12px;color:#aab5ba;margin-bottom:8px}
+.match{display:grid;grid-template-columns:1fr 80px 1fr;gap:8px;align-items:center;padding:11px 0;border-top:1px solid #2a3236}
+.team:last-child{text-align:right}.score{text-align:center;font-weight:800;font-size:18px}.status{font-size:11px;color:#ff5668;margin-top:3px}
+.meta{color:#9da8ad;font-size:12px}.error{color:#ff8b94;padding:10px}.loading{color:#9da8ad}
+.bottom{position:fixed;bottom:0;left:0;right:0;background:#151b1e;display:flex;justify-content:space-around;padding:10px;z-index:4}.bottom span{font-size:11px;color:#aeb8bc;text-align:center}.bottom .sel{color:#20d47b}
+</style></head>
+<body>
+<header><div class="logo">🇬🇼 Guiné Sports</div><div class="sub" id="updated">Resultados de futebol mundial</div></header>
+<nav><button class="active" data-tab="live">🔴 Ao vivo</button><button data-tab="today">📅 Hoje</button><button data-tab="leagues">🏆 Ligas</button></nav>
+<main><div id="content" class="loading">Carregando jogos...</div></main>
+<div class="bottom"><span class="sel">⌂<br>Início</span><span>★<br>Favoritos</span><span>🔴<br>Ao vivo</span><span>🏆<br>Ligas</span><span>📰<br>Notícias</span></div>
+<script>
+const content=document.getElementById('content'), updated=document.getElementById('updated');
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function fixtureCard(x){
+ const h=x.teams?.home?.name||'Casa', a=x.teams?.away?.name||'Visitante';
+ const hs=x.goals?.home??'-', as=x.goals?.away??'-', st=x.fixture?.status;
+ const live=st?.elapsed!=null && !['FT','AET','PEN'].includes(st.short);
+ return `<section class="card"><div class="league">${esc(x.league?.name)} • ${esc(x.league?.country)}</div>
+ <div class="match"><div class="team">${esc(h)}</div><div class="score">${hs} - ${as}<div class="status">${live?'● '+st.elapsed+"'":esc(st?.long||'')}</div></div><div class="team">${esc(a)}</div></div></section>`;
+}
+async function load(path,title){
+ content.innerHTML='<div class="loading">Carregando...</div>';
+ try{const r=await fetch(path);const d=await r.json();if(!r.ok)throw Error(d.error);
+ const arr=d.response||[]; content.innerHTML=`<div class="title">${title}</div>`+(arr.length?arr.map(fixtureCard).join(''):'<div class="card">Nenhum jogo encontrado.</div>');
+ updated.textContent='Atualizado: '+new Date().toLocaleTimeString('pt-PT');
+ }catch(e){content.innerHTML='<div class="error">Erro: '+esc(e.message)+'</div>'}
+}
+function today(){return new Date().toISOString().slice(0,10)}
+load('/api/live','🔴 Jogos ao vivo');
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+ if(b.dataset.tab==='live')load('/api/live','🔴 Jogos ao vivo');
+ else if(b.dataset.tab==='today')load('/api/fixtures?date='+today(),'📅 Jogos de hoje');
+ else content.innerHTML='<div class="title">🏆 Ligas</div><div class="card">Use o endpoint <b>/api/leagues</b> para carregar as competições disponíveis.</div>';
+});
+setInterval(()=>{if(document.querySelector('nav button.active')?.dataset.tab==='live')load('/api/live','🔴 Jogos ao vivo')},30000);
+</script></body></html>
